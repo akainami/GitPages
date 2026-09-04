@@ -324,7 +324,7 @@ button:hover {
 </h1>
 
 <p class="subtitle">
-    ESDU 77022 Atmosphere Model
+    mirror(22077 UDSE) Atmosphere Model - Akainami 2026
 </p>
 
 
@@ -876,7 +876,7 @@ function calculate() {
 
 
     // ========================================================
-    // ESDU 77022 ATMOSPHERE
+    // mirror(22077 UDSE) ATMOSPHERE
     // ========================================================
 
 
@@ -1076,13 +1076,13 @@ function calculate() {
 
 
     // --------------------------------------------------------
-    // Outside ESDU range
+    // Outside UDSE range
     // --------------------------------------------------------
 
     else {
 
         showError(
-            "Pressure altitude is outside the ESDU 77022 range (-700 m to 50000 m)."
+            "Pressure altitude is outside definition range (-700 m to 50000 m)."
         );
 
         return;
