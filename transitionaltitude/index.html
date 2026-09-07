@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossover Altitude Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+
+        <h1>Crossover Altitude Calculator</h1>
+        <p class="subtitle">
+             UDSE 22077 - Constant-CAS / Constant-Mach Crossover - Akainami 2026
+        </p>
+
+        <div class="layout">
+
+            <!-- ==========================================================
+                 INPUT SECTION
+                 ========================================================== -->
+            <div class="input-section">
+
+                <div class="input-group">
+                    <label for="targetCas">Target CAS (kt)</label>
+                    <input id="targetCas" type="number" value="250" step="1">
+                </div>
+
+                <div class="input-group">
+                    <label for="targetMach">Target Mach</label>
+                    <input id="targetMach" type="number" value="0.74" step="0.01">
+                </div>
+
+                <div class="input-group">
+                    <label for="disa">Delta ISA (&deg;C)</label>
+                    <input id="disa" type="number" value="0" step="0.1">
+                </div>
+
+                <p class="note">
+                    Crossover altitude is the pressure altitude at which flying at the
+                    target CAS produces exactly the target Mach number. Above it, a
+                    constant-Mach schedule is faster than the CAS schedule; below it,
+                    the CAS schedule is faster.
+                </p>
+
+                <div id="error" class="error"></div>
+
+            </div>
+
+            <!-- ==========================================================
+                 RESULTS
+                 ========================================================== -->
+            <div class="result-section">
+
+                <!-- CROSSOVER ALTITUDE -->
+                <div class="result-card">
+                    <div class="result-title">Crossover Altitude</div>
+
+                    <div class="result-row">
+                        <span class="result-label">Pressure Altitude</span>
+                        <span class="result-value" id="pressAltFt">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">Pressure Altitude</span>
+                        <span class="result-value" id="pressAltM">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">Geometric Altitude</span>
+                        <span class="result-value" id="geoAltFt">-</span>
+                    </div>
+                </div>
+
+                <!-- ATMOSPHERE AT CROSSOVER -->
+                <div class="result-card">
+                    <div class="result-title">Atmosphere at Crossover</div>
+
+                    <div class="result-row">
+                        <span class="result-label">Pressure</span>
+                        <span class="result-value" id="pressure">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">OAT</span>
+                        <span class="result-value" id="oat">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">Density Ratio</span>
+                        <span class="result-value" id="sigma">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">Speed of Sound</span>
+                        <span class="result-value" id="speedOfSound">-</span>
+                    </div>
+                </div>
+
+                <!-- AIRSPEED AT CROSSOVER -->
+                <div class="result-card">
+                    <div class="result-title">Airspeed at Crossover</div>
+
+                    <div class="result-row">
+                        <span class="result-label">Mach (check)</span>
+                        <span class="result-value" id="machOut">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">KCAS (check)</span>
+                        <span class="result-value" id="kcasOut">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">KTAS</span>
+                        <span class="result-value" id="ktas">-</span>
+                    </div>
+
+                    <div class="result-row">
+                        <span class="result-label">KEAS</span>
+                        <span class="result-value" id="keas">-</span>
+                    </div>
+                </div>
+
+            </div>
+            <!-- /.result-section -->
+
+        </div>
+        <!-- /.layout -->
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
