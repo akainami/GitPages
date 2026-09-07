@@ -188,9 +188,9 @@ function applyMapSource() {
                 //    attribution: "&copy; OpenStreetMap contributors"
                 // }
 				'https://nwy-tiles-api.prod.newaydata.com/tiles/{z}/{x}/{y}.png?path=latest/aero/latest', {
-    minZoom: 4,
-    maxZoom: 11, // 11'den fazla zoom yaparsanız harita tekrar griye dönebilir
-    attribution: '&copy; <a href="https://openflightmaps.org" target="_blank">Open Flightmaps</a>' }
+				minZoom: 4,
+				maxZoom: 11, // 11'den fazla zoom yaparsanız harita tekrar griye dönebilir
+				attribution: '&copy; <a href="https://openflightmaps.org" target="_blank">Open Flightmaps</a>' }
             );
         }
 
