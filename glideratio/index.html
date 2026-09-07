@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glide Cone Map - Akainami</title>
+
+    <!-- Leaflet (map library) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+
+        <h1>Glide Cone Map</h1>
+        <p class="subtitle">
+            Glide cone visualization for aircraft location, altitude, glide ration and wind
+        </p>
+
+        <div class="layout">
+
+            <!-- ==========================================================
+                 INPUTS
+                 ========================================================== -->
+            <div class="input-section">
+
+                <div class="input-group">
+                    <label>Aircraft Location</label>
+                    <div class="coord-row">
+                        <div>
+                            <label class="sub-label" for="lat">Latitude</label>
+                            <input id="lat" type="number" value="41.20428" step="0.0001">
+                        </div>
+                        <div>
+                            <label class="sub-label" for="lon">Longitude</label>
+                            <input id="lon" type="number" value="32.62440" step="0.0001">
+                        </div>
+                    </div>
+                    <p class="note">Location can be choosed via dragging the cursor or clicking the map.</p>
+                </div>
+
+                <div class="input-group">
+                    <label for="altitude">Altitude (ft)</label>
+                    <input id="altitude" type="number" value="15000" step="100">
+                </div>
+
+                <div class="input-group">
+                    <label for="heading">Heading(&deg;)</label>
+                    <input id="heading" type="number" value="90" step="1" min="0" max="359">
+                </div>
+
+                <div class="input-group">
+                    <label for="disa">Delta ISA (&deg;C)</label>
+                    <input id="disa" type="number" value="0" step="0.1">
+                    <p class="note">Used for KCAS to KTAS conversion.</p>
+                </div>
+
+                <div class="input-group">
+                    <label for="mapSource">Map</label>
+                    <select id="mapSource">
+                        <option value="online">OpenStreetMap (Online)</option>
+                        <option value="local">Local (Offline)</option>
+                    </select>
+                </div>
+
+                <div class="input-group" id="localMapGroup" style="display:none;">
+                    <label for="localImageUrl">Image Path</label>
+                    <input id="localImageUrl" type="text" value="map.jpg">
+
+                    <label class="sub-label" style="margin-top:10px;">Northwest Corner</label>
+                    <div class="coord-row">
+                        <input id="nwLat" type="number" step="0.0001" placeholder="Enlem" value="41.20">
+                        <input id="nwLon" type="number" step="0.0001" placeholder="Boylam" value="28.70">
+                    </div>
+
+                    <label class="sub-label" style="margin-top:10px;">Southeast Corner</label>
+                    <div class="coord-row">
+                        <input id="seLat" type="number" step="0.0001" placeholder="Enlem" value="40.85">
+                        <input id="seLon" type="number" step="0.0001" placeholder="Boylam" value="29.25">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Altitude Blocks &mdash; Glide Ratio, Calibrated Airspeed and Wind</label>
+                    <p class="note">
+                        Each row describes the glide ratio, glide speed (KCAS), and wind for the altitude range up to the next lower altitude block.
+                    </p>
+
+                    <div class="band-table">
+                        <div class="band-row band-header">
+                            <span>Top of Altitude Block (ft)</span>
+                            <span>Glide Ratio (X:1)</span>
+                            <span>Airspeed (KCAS)</span>
+                            <span>Wind Dir (&deg;)</span>
+                            <span>Wind Spd (KT)</span>
+                            <span></span>
+                        </div>
+                        <div id="bandsContainer"></div>
+                    </div>
+
+                    <button type="button" id="addBandBtn" class="secondary-btn">+ Add Block</button>
+                </div>
+
+                <div id="error" class="error"></div>
+
+            </div>
+
+            <!-- ==========================================================
+                 Map and Results  - Akainami 2026
+                 ========================================================== -->
+            <div class="map-section">
+
+                <div id="map"></div>
+
+                <div class="result-section">
+
+                    <div class="result-card">
+                        <div class="result-title">Glide Cone</div>
+
+                        <div class="result-row">
+                            <span class="result-label">Zero-Wind Radius</span>
+                            <span class="result-value" id="radiusOut">-</span>
+                        </div>
+
+                        <div class="result-row">
+                            <span class="result-label">Wind Drift</span>
+                            <span class="result-value" id="driftOut">-</span>
+                        </div>
+
+                        <div class="result-row">
+                            <span class="result-label">Total Glide Time</span>
+                            <span class="result-value" id="timeOut">-</span>
+                        </div>
+                    </div>
+
+                    <div class="result-card">
+                        <div class="result-title">Coordinates</div>
+
+                        <div class="result-row">
+                            <span class="result-label">Aircraft Location</span>
+                            <span class="result-value" id="acftCoordOut">-</span>
+                        </div>
+
+                        <div class="result-row">
+                            <span class="result-label">Center of Cone</span>
+                            <span class="result-value" id="centerCoordOut">-</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+        <!-- /.layout -->
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,297 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #f4f6f8;
+    color: #202124;
+}
+
+.container {
+    width: 95%;
+    max-width: 1300px;
+    margin: 40px auto;
+    padding: 35px;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+h1 {
+    margin: 0;
+    text-align: center;
+    font-size: 30px;
+}
+
+.subtitle {
+    margin-top: 0px;
+    margin-bottom: 10px;
+    text-align: center;
+    color: #666;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+
+.layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 35px;
+}
+
+/* ============================================================
+   INPUTS
+   ============================================================ */
+
+.input-section {
+    flex: 0 0 340px;
+    position: sticky;
+    top: 20px;
+}
+
+.input-group {
+    margin-bottom: 18px;
+}
+
+label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: bold;
+}
+
+.sub-label {
+    font-weight: normal;
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+    background-color: white;
+}
+
+.coord-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+button {
+    width: 100%;
+    margin-top: 8px;
+    padding: 13px;
+    border: none;
+    border-radius: 6px;
+    background-color: #2563eb;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #1d4ed8;
+}
+
+.secondary-btn {
+    background-color: #f1f5f9;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    font-size: 14px;
+    padding: 9px;
+}
+
+.secondary-btn:hover {
+    background-color: #e2e8f0;
+}
+
+.note {
+    margin: 6px 0 0 0;
+    font-size: 12.5px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* ============================================================
+   İRTİFA KADEMELERİ TABLOSU
+   ============================================================ */
+
+.band-table {
+    margin-top: 10px;
+}
+
+.band-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 26px;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.band-header span {
+    font-size: 11px;
+    font-weight: bold;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.band-row input {
+    padding: 8px 6px;
+    font-size: 13px;
+}
+
+.remove-row-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    margin: 0;
+    line-height: 24px;
+    text-align: center;
+    background-color: #fee2e2;
+    color: #991b1b;
+    font-weight: bold;
+    font-size: 14px;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.remove-row-btn:hover {
+    background-color: #fecaca;
+}
+
+/* ============================================================
+   HARİTA
+   ============================================================ */
+
+.map-section {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#map {
+    width: 100%;
+    height: 560px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background-color: #e2e8f0;
+}
+
+.plane-icon {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: center center;
+}
+
+/* ============================================================
+   RESULTS
+   ============================================================ */
+
+.result-section {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.result-card {
+    padding: 20px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.result-title {
+    margin-bottom: 12px;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 7px 0;
+    font-size: 15px;
+}
+
+.result-label {
+    color: #64748b;
+}
+
+.result-value {
+    font-weight: bold;
+    text-align: right;
+}
+
+.error {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 6px;
+    background-color: #fee2e2;
+    color: #991b1b;
+    text-align: center;
+    display: none;
+}
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+
+@media (max-width: 900px) {
+    .layout {
+        flex-direction: column;
+    }
+
+    .input-section {
+        flex: 1 1 auto;
+        width: 100%;
+        position: static;
+    }
+
+    #map {
+        height: 400px;
+    }
+}
+
+@media (max-width: 650px) {
+    .container {
+        width: 95%;
+        margin: 20px auto;
+        padding: 20px;
+    }
+
+    h1 {
+        font-size: 25px;
+    }
+
+    .result-section {
+        grid-template-columns: 1fr;
+    }
+
+    .band-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .band-row .remove-row-btn {
+        grid-column: span 2;
+        width: 100%;
+    }
+}
