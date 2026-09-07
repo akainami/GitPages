@@ -182,15 +182,15 @@ function applyMapSource() {
 
         if (!onlineTileLayer) {
             onlineTileLayer = L.tileLayer(
-                // "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                // {
-                //    maxZoom: 19,
-                //    attribution: "&copy; OpenStreetMap contributors"
+                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+                   maxZoom: 19,
+				attribution: "&copy; OpenStreetMap contributors" }
                 // }
-				'https://nwy-tiles-api.prod.newaydata.com/tiles/{z}/{x}/{y}.png?path=latest/aero/latest', {
-				minZoom: 4,
-				maxZoom: 11, // 11'den fazla zoom yaparsanız harita tekrar griye dönebilir
-				attribution: '&copy; <a href="https://openflightmaps.org" target="_blank">Open Flightmaps</a>' }
+				// 'https://nwy-tiles-api.prod.newaydata.com/tiles/{z}/{x}/{y}.png?path=latest/aero/latest', {
+				// minZoom: 4,
+				// maxZoom: 11, // 11'den fazla zoom yaparsanız harita tekrar griye dönebilir
+				// attribution: '&copy; <a href="https://openflightmaps.org" target="_blank">Open Flightmaps</a>' }
             );
         }
 
@@ -475,7 +475,7 @@ function recalc() {
         result.radiusNm.toFixed(2) + " NM (" + (result.radiusNm * 1.852).toFixed(2) + " km)";
 
     document.getElementById("driftOut").textContent =
-        result.driftNm.toFixed(2) + " NM, " + result.driftBearingDeg.toFixed(0) + "°'ye doğru";
+        result.driftNm.toFixed(2) + " NM, " + result.driftBearingDeg.toFixed(0) + "°";
 
     document.getElementById("timeOut").textContent =
         (result.timeHr * 60).toFixed(1) + " dk";
