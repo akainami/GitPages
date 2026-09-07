@@ -124,7 +124,8 @@ function kcasToKtas(kcasVal, altFt, disaC) {
 // LEAFLET MAP SETUP - Akainami 2026
 // ============================================================
 
-const map = L.map("map", { zoomControl: true }).setView([39.0, 35.0], 6);
+// const map = L.map("map", { zoomControl: true }).setView([39.0, 35.0], 6);
+ const map = L.map("map", { zoomControl: true });
 
 let onlineTileLayer = null;
 let localImageOverlay = null;
