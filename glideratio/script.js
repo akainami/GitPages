@@ -479,7 +479,7 @@ function recalc() {
         result.driftNm.toFixed(2) + " NM, " + result.driftBearingDeg.toFixed(0) + "°";
 
     document.getElementById("timeOut").textContent =
-        (result.timeHr * 60).toFixed(1) + " dk";
+        (result.timeHr * 60).toFixed(1) + " min";
 
     document.getElementById("acftCoordOut").textContent =
         lat.toFixed(5) + ", " + lon.toFixed(5);
