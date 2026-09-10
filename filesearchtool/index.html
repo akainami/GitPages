@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<!-- Akainami 2026 -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>File Content Search - Akainami</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --border:#262b36; --text:#e6e8ee;
+    --muted:#8b93a7; --accent:#5b8cff; --accent2:#2fbf71; --danger:#ff5b5b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:32px 24px; display:flex;
+    flex-direction:column; align-items:center; min-height:100vh;
+  }
+  .wrap{width:100%; max-width:720px;}
+  h1{font-size:20px; font-weight:600; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:24px;}
+
+  .search-row{display:flex; gap:8px; margin-bottom:8px;}
+  input[type=text]{
+    flex:1; padding:12px 14px; border-radius:10px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); font-size:14px; outline:none;
+  }
+  input[type=text]:focus{border-color:var(--accent);}
+  button{
+    padding:12px 18px; border-radius:10px; border:none; background:var(--accent);
+    color:#fff; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  button:hover{opacity:.9;}
+  button.secondary{background:var(--panel); border:1px solid var(--border); color:var(--text); font-weight:500;}
+  button.danger{background:transparent; border:1px solid var(--danger); color:var(--danger); padding:4px 10px; font-size:12px;}
+  button:disabled{opacity:.5; cursor:not-allowed;}
+
+  .options{display:flex; align-items:center; gap:16px; margin-bottom:20px; font-size:13px; color:var(--muted);}
+  .options label{display:flex; align-items:center; gap:6px; cursor:pointer;}
+
+  details{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    margin-bottom:20px; padding:0; overflow:hidden;
+  }
+  summary{padding:12px 14px; cursor:pointer; font-size:13px; color:var(--muted); list-style:none;}
+  summary::-webkit-details-marker{display:none;}
+  summary:before{content:"▸ "; color:var(--accent);}
+  details[open] summary:before{content:"▾ ";}
+  .folder-body{padding:0 14px 14px;}
+  .folder-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 0; border-bottom:1px solid var(--border); font-size:13px;
+  }
+  .folder-item:last-child{border-bottom:none;}
+  .folder-name{display:flex; align-items:center; gap:8px;}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--accent2); flex-shrink:0;}
+  .dot.warn{background:#f5b942;}
+
+  #status{font-size:13px; color:var(--muted); min-height:18px; margin:6px 0 14px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th, td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--border);}
+  th{color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.03em;}
+  td.path{color:var(--muted); font-size:12px; word-break:break-all;}
+  tr:hover td{background:rgba(255,255,255,0.02);}
+  .empty{color:var(--muted); font-size:13px; padding:20px 0; text-align:center;}
+  .count{font-size:12px; color:var(--muted); margin-bottom:8px;}
+  .unsupported{background:#3a2323; border:1px solid var(--danger); color:#ffb3b3; padding:14px; border-radius:10px; font-size:13px; margin-bottom:20px;}
+  .footer-tag{
+    position:fixed; bottom:10px; right:14px; font-size:11px; color:#454b58;
+    opacity:.55; user-select:none; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<!-- Akainami 2026 -->
+<div class="wrap">
+  <h1>File Content Search</h1>
+  <div class="sub">Search all files in your chosen folders for a keyword or phrase.</div>
+
+  <div id="unsupportedBox" class="unsupported" style="display:none;">
+    This browser does not support the File System Access API. Please use Chrome or Edge.
+  </div>
+
+  <details id="folderPanel">
+    <summary>Folders <span id="folderCountLabel"></span></summary>
+    <div class="folder-body">
+      <div id="folderList"></div>
+      <button class="secondary" id="addFolderBtn" style="margin-top:10px;">+ Add Folder</button>
+    </div>
+  </details>
+
+  <div class="search-row">
+    <input type="text" id="keywordInput" placeholder="Keyword or phrase to search...">
+    <button id="searchBtn">Search</button>
+  </div>
+  <div class="options">
+    <label><input type="checkbox" id="caseSensitive"> Case sensitive</label>
+  </div>
+
+  <div id="status"></div>
+  <div id="resultsArea"></div>
+</div>
+
+<div class="footer-tag">&copy; 2026 Akainami — File Content Search Tool</div>
+
+<script>
+const DB_NAME = 'FolderSearchDB';
+const STORE_NAME = 'folders';
+let db = null;
+// Akainami 2026
+// File extensions that will NOT be read as text (binary files)
+const BINARY_EXT = new Set(['png','jpg','jpeg','gif','bmp','webp','ico','svgz','mp3','wav','mp4',
+  'mov','avi','mkv','zip','rar','7z','exe','dll','so','dylib','pdf','doc','docx','xls','xlsx',
+  'ppt','pptx','woff','woff2','ttf','otf','eot','class','jar','iso','bin','dat','db','sqlite']);
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = ()=>{
+      req.result.createObjectStore(STORE_NAME, { keyPath:'id', autoIncrement:true });
+    };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+
+function dbGetAll(){
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+function dbAdd(entry){
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const req = tx.objectStore(STORE_NAME).add(entry);
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+function dbDelete(id){
+  return new Promise((resolve, reject)=>{
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const req = tx.objectStore(STORE_NAME).delete(id);
+    req.onsuccess = ()=> resolve();
+    req.onerror = ()=> reject(req.error);
+  });
+}
+
+let folders = []; // {id, name, handle, permission}
+
+async function refreshFolders(){
+  folders = await dbGetAll();
+  for(const f of folders){
+    try{
+      const perm = await f.handle.queryPermission({mode:'read'});
+      f.permission = perm; // 'granted' | 'denied' | 'prompt'
+    }catch(e){ f.permission = 'error'; }
+  }
+  renderFolders();
+}
+// Akainami 2026
+function renderFolders(){
+  const list = document.getElementById('folderList');
+  const label = document.getElementById('folderCountLabel');
+  label.textContent = folders.length ? `(${folders.length})` : '(0 - add a folder)';
+  if(folders.length === 0){
+    list.innerHTML = '<div class="empty">No folders added yet.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for(const f of folders){
+    const row = document.createElement('div');
+    row.className = 'folder-item';
+    const ok = f.permission === 'granted';
+    row.innerHTML = `
+      <div class="folder-name">
+        <span class="dot ${ok?'':'warn'}"></span>
+        <span>${f.name}</span>
+      </div>
+      <div>
+        ${ok ? '' : '<button class="secondary" style="padding:4px 10px;font-size:12px;margin-right:6px;" data-grant="'+f.id+'">Grant Access</button>'}
+        <button class="danger" data-remove="${f.id}">Remove</button>
+      </div>`;
+    list.appendChild(row);
+  }
+  list.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      await dbDelete(Number(btn.dataset.remove));
+      await refreshFolders();
+    };
+  });
+  list.querySelectorAll('[data-grant]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const f = folders.find(x=>x.id === Number(btn.dataset.grant));
+      if(f){
+        const res = await f.handle.requestPermission({mode:'read'});
+        f.permission = res;
+        renderFolders();
+      }
+    };
+  });
+}
+
+document.getElementById('addFolderBtn').onclick = async ()=>{
+  try{
+    const handle = await window.showDirectoryPicker();
+    await dbAdd({ name: handle.name, handle });
+    await refreshFolders();
+  }catch(e){
+    // user cancelled or an error occurred - fail silently
+    if(e && e.name !== 'AbortError') console.error(e);
+  }
+};
+
+async function* walk(dirHandle, relPath){
+  for await (const [name, handle] of dirHandle.entries()){
+    const childPath = relPath ? relPath + '/' + name : name;
+    if(handle.kind === 'file'){
+      yield { handle, path: childPath };
+    } else if(handle.kind === 'directory'){
+      yield* walk(handle, childPath);
+    }
+  }
+}
+
+function getExt(name){
+  const i = name.lastIndexOf('.');
+  return i === -1 ? '' : name.slice(i+1).toLowerCase();
+}
+
+async function runSearch(){
+  const keywordRaw = document.getElementById('keywordInput').value;
+  const keyword = keywordRaw.trim();
+  const statusEl = document.getElementById('status');
+  const resultsArea = document.getElementById('resultsArea');
+  resultsArea.innerHTML = '';
+
+  if(!keyword){
+    statusEl.textContent = 'Please enter a keyword or phrase.';
+    return;
+  }
+  const readyFolders = folders.filter(f=>f.permission === 'granted');
+  if(readyFolders.length === 0){
+    statusEl.textContent = 'No accessible folders to search. Add/grant access to a folder in the "Folders" section.';
+    return;
+  }
+
+  const caseSensitive = document.getElementById('caseSensitive').checked;
+  const needle = caseSensitive ? keyword : keyword.toLowerCase();
+
+  document.getElementById('searchBtn').disabled = true;
+  let scanned = 0;
+  const matches = [];
+
+  for(const f of readyFolders){
+    statusEl.textContent = `Scanning: ${f.name} ...`;
+    try{
+      for await (const entry of walk(f.handle, '')){
+        const ext = getExt(entry.handle.name);
+        if(BINARY_EXT.has(ext)) continue;
+        try{
+          const file = await entry.handle.getFile();
+          // skip very large files (over 25MB)
+          if(file.size > 25 * 1024 * 1024) continue;
+          const text = await file.text();
+          const haystack = caseSensitive ? text : text.toLowerCase();
+          scanned++;
+          if(scanned % 25 === 0){
+            statusEl.textContent = `Scanning: ${f.name} (${scanned} files scanned)`;
+          }
+          if(haystack.includes(needle)){
+            matches.push({ folder: f.name, fileName: entry.handle.name, path: `${f.name}/${entry.path}` });
+          }
+        }catch(readErr){
+          // skip files that can't be read
+        }
+      }
+    }catch(walkErr){
+      console.error('Error scanning folder:', f.name, walkErr);
+    }
+  }
+
+  document.getElementById('searchBtn').disabled = false;
+  statusEl.textContent = `Done: ${scanned} files scanned, ${matches.length} matches found.`;
+  renderResults(matches);
+}
+
+function renderResults(matches){
+  const area = document.getElementById('resultsArea');
+  if(matches.length === 0){
+    area.innerHTML = '<div class="empty">No matches found.</div>';
+    return;
+  }
+  let html = `<div class="count">${matches.length} results</div><table><thead><tr><th>File Name</th><th>Path</th></tr></thead><tbody>`;
+  for(const m of matches){
+    html += `<tr><td>${escapeHtml(m.fileName)}</td><td class="path">${escapeHtml(m.path)}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  area.innerHTML = html;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+document.getElementById('searchBtn').onclick = runSearch;
+document.getElementById('keywordInput').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') runSearch();
+});
+
+(async function init(){
+  if(!('showDirectoryPicker' in window)){
+    document.getElementById('unsupportedBox').style.display = 'block';
+    document.getElementById('addFolderBtn').disabled = true;
+    document.getElementById('searchBtn').disabled = true;
+    return;
+  }
+  db = await openDB();
+  await refreshFolders();
+})();
+</script>
+<!-- Akainami 2026 -->
+</body>
+</html>
