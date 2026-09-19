@@ -114,10 +114,15 @@ const DB_NAME = 'FolderSearchDB';
 const STORE_NAME = 'folders';
 let db = null;
 
-// File extensions that will NOT be read (unsupported binary formats)
+// File extensions that will NOT be read (known unsupported binary formats)
 const BINARY_EXT = new Set(['png','jpg','jpeg','gif','bmp','webp','ico','svgz','mp3','wav','mp4',
   'mov','avi','mkv','zip','rar','7z','exe','dll','so','dylib','doc','ppt','xls',
-  'woff','woff2','ttf','otf','eot','class','jar','iso','bin','dat','db','sqlite']);
+  'woff','woff2','ttf','otf','eot','class','jar','iso','db','sqlite']);
+// Note: anything NOT in this list (including unknown/unfamiliar extensions like .dat, .rek, .crank)
+// is treated as plain text and searched, same as .txt.
+
+// Extensions that natively render in a browser tab when opened
+const VIEWABLE_EXT = new Set(['pdf','txt','md','csv','json','xml','html','htm','css','js','log']);
 
 // Extensions handled via special parsers instead of plain text
 const RICH_EXT = new Set(['pdf','docx','xlsx','pptx']);
@@ -171,7 +176,8 @@ async function extractPptxText(file){
 
 async function extractXlsxText(file){
   const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: 'array' });
+  const data = new Uint8Array(buf);
+  const wb = XLSX.read(data, { type: 'array' });
   let text = '';
   for(const sheetName of wb.SheetNames){
     const sheet = wb.Sheets[sheetName];
@@ -390,8 +396,23 @@ function renderResults(matches){
 async function openMatchFile(match){
   try{
     const file = await match.handle.getFile();
+    const ext = getExt(match.fileName);
     const url = URL.createObjectURL(file);
-    window.open(url, '_blank');
+    if(VIEWABLE_EXT.has(ext)){
+      // Browser can render this type directly in a tab
+      window.open(url, '_blank');
+    }else{
+      // Not natively renderable (e.g. docx/xlsx/pptx) - trigger a direct download.
+      // The browser's download bar then offers an "Open" action that launches
+      // the file in its default application (Word/Excel/etc.) — that final
+      // click has to come from the browser/user, a web page cannot do it.
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = match.fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   }catch(e){
     console.error(e);
