@@ -1,24 +1,143 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Effective Range - Coverage Analysis</title>
+<title>Effective Flight Range — Coverage Analysis</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* ============================================================
+   DESIGN TOKENS - dark (default) and light themes
+   ============================================================ */
+:root{
+  --void:#050910; --panel:rgba(9,17,28,0.88); --panel-edge:rgba(61,214,255,0.35);
+  --grid:rgba(61,214,255,0.06); --cyan:#3dd6ff; --cyan-dim:#1c6f8f; --accent-soft:rgba(61,214,255,0.10);
+  --red:#ff5468; --ink:#d9f4ff; --ink-dim:#638196; --field-bg:#0a1420;
+  --header-top:rgba(12,22,36,0.95); --header-bottom:rgba(6,11,18,0.9); --glow:rgba(61,214,255,0.10);
+  --c-transit:#33e6a0; --c-absolute:#ffb340; --c-pnr:#ff5fd1;
+  --mono: ui-monospace, "SFMono-Regular", "Roboto Mono", Consolas, monospace;
+}
+:root[data-theme="light"]{
+  --void:#eaf0f6; --panel:rgba(255,255,255,0.94); --panel-edge:rgba(10,110,150,0.38);
+  --grid:rgba(10,110,150,0.07); --cyan:#0a7aa5; --cyan-dim:#7fb0c6; --accent-soft:rgba(10,122,165,0.10);
+  --red:#d62f48; --ink:#0f2433; --ink-dim:#4f6a7a; --field-bg:#f4f8fb;
+  --header-top:rgba(255,255,255,0.97); --header-bottom:rgba(232,240,246,0.95); --glow:rgba(10,122,165,0.08);
+  --c-transit:#0f9d6a; --c-absolute:#d97706; --c-pnr:#c026a3;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  background:
+    radial-gradient(ellipse at 20% -10%, var(--glow), transparent 55%),
+    repeating-linear-gradient(0deg, var(--grid) 0px, transparent 1px, transparent 28px),
+    repeating-linear-gradient(90deg, var(--grid) 0px, transparent 1px, transparent 28px),
+    var(--void);
+  color:var(--ink); font-family:var(--mono); overflow:hidden;
+}
+.app{display:grid; grid-template-rows:auto 1fr; height:100vh;}
 
-    <link rel="stylesheet" href="style.css">
+/* ---------------- header ---------------- */
+header.hud{
+  position:relative; display:flex; align-items:center; justify-content:space-between;
+  padding:10px 20px; border-bottom:1px solid var(--panel-edge);
+  background:linear-gradient(180deg, var(--header-top), var(--header-bottom));
+}
+header.hud::after{
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+  background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+  animation:sweep 5s linear infinite;
+}
+@keyframes sweep{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+.hud-title{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+.hud-title .mark{color:var(--cyan); font-weight:700; letter-spacing:2px; font-size:15px;}
+.hud-title .sub{color:var(--ink-dim); font-size:11px; letter-spacing:1px;}
+.hud-status{display:flex; align-items:center; gap:16px; font-size:11px; color:var(--ink-dim); letter-spacing:1px;}
+.hud-status .dot{width:7px; height:7px; border-radius:50%; background:var(--c-transit); display:inline-block; margin-right:6px; box-shadow:0 0 8px var(--c-transit); animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+#clock{color:var(--cyan);}
+.theme-btn{background:var(--accent-soft); border:1px solid var(--cyan); color:var(--cyan); font-family:var(--mono); font-size:10px; letter-spacing:1px; padding:5px 10px; border-radius:2px; cursor:pointer; white-space:nowrap;}
+.theme-btn:hover{filter:brightness(1.2);}
+
+/* ---------------- body layout ---------------- */
+.body{display:grid; grid-template-columns:390px 1fr; height:100%; min-height:0;}
+@media (max-width:900px){ .body{grid-template-columns:1fr; grid-template-rows:auto 1fr; overflow:auto;} .sidebar{max-height:52vh;} }
+
+.sidebar{overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; border-right:1px solid var(--panel-edge);}
+.sidebar::-webkit-scrollbar{width:6px;} .sidebar::-webkit-scrollbar-thumb{background:var(--cyan-dim); border-radius:3px;}
+
+.panel{position:relative; background:var(--panel); border:1px solid var(--panel-edge); border-radius:2px; padding:14px; backdrop-filter:blur(6px);}
+.panel::before,.panel::after{content:""; position:absolute; width:10px; height:10px; border:1px solid var(--cyan); opacity:0.7;}
+.panel::before{top:-1px; left:-1px; border-right:none; border-bottom:none;}
+.panel::after{bottom:-1px; right:-1px; border-left:none; border-top:none;}
+.panel h2{margin:0 0 10px; font-size:11px; letter-spacing:2px; color:var(--cyan); font-weight:600; text-transform:uppercase;}
+
+.field{display:flex; flex-direction:column; gap:4px; margin-bottom:10px;}
+.field label{font-size:10px; color:var(--ink-dim); letter-spacing:1px;}
+.field input{background:var(--field-bg); border:1px solid var(--cyan-dim); color:var(--ink); font-family:var(--mono); font-size:13px; padding:7px 8px; border-radius:2px; outline:none; width:100%;}
+.field input:focus{border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan) inset;}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+
+/* runway table */
+table.bases{width:100%; border-collapse:collapse; font-size:11px;}
+table.bases th{text-align:left; color:var(--ink-dim); font-weight:500; letter-spacing:1px; padding:4px; border-bottom:1px solid var(--cyan-dim); font-size:9px; text-transform:uppercase;}
+table.bases td{padding:3px 4px; border-bottom:1px solid var(--grid);}
+table.bases input{width:100%; background:transparent; border:none; color:var(--ink); font-family:var(--mono); font-size:11px; padding:2px;}
+table.bases input:focus{outline:1px solid var(--cyan-dim);}
+.icon-btn{background:none; border:1px solid var(--red); color:var(--red); font-family:var(--mono); font-size:10px; border-radius:2px; padding:2px 6px; cursor:pointer;}
+.icon-btn:hover{background:rgba(255,84,104,0.15);}
+.btn{background:var(--accent-soft); border:1px solid var(--cyan); color:var(--cyan); font-family:var(--mono); font-size:11px; letter-spacing:1px; padding:7px 10px; border-radius:2px; cursor:pointer; width:100%; margin-top:8px;}
+.btn:hover{filter:brightness(1.2);}
+
+/* drawing options table */
+table.options{width:100%; border-collapse:collapse; font-size:11px;}
+table.options th{text-align:center; color:var(--ink-dim); font-weight:500; letter-spacing:1px; padding:4px 2px; border-bottom:1px solid var(--cyan-dim); font-size:9px; text-transform:uppercase;}
+table.options th:first-child, table.options td:first-child{text-align:left;}
+table.options td{padding:7px 2px; border-bottom:1px solid var(--grid); text-align:center; vertical-align:middle;}
+table.options small{display:block; color:var(--ink-dim); font-size:10px; line-height:1.3; margin-top:2px;}
+table.options input[type="checkbox"]{accent-color:var(--cyan); width:15px; height:15px; margin:0; cursor:pointer;}
+table.options input[type="color"]{width:30px; height:22px; padding:0; border:1px solid var(--cyan-dim); background:transparent; border-radius:2px; cursor:pointer;}
+
+/* results readout */
+.readout{display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-bottom:1px dashed var(--grid); font-size:12px; gap:8px;}
+.readout:last-child{border-bottom:none;}
+.readout .k{color:var(--ink-dim); font-size:10px; letter-spacing:1px;}
+.readout .v{color:var(--ink); font-weight:600; text-align:right;}
+table.mini{width:100%; border-collapse:collapse; font-size:11px; margin-top:6px;}
+table.mini th{text-align:left; color:var(--ink-dim); font-weight:500; font-size:9px; letter-spacing:1px; padding:3px 2px; border-bottom:1px solid var(--cyan-dim); text-transform:uppercase;}
+table.mini td{padding:3px 2px; border-bottom:1px dashed var(--grid);}
+.sub-heading{font-size:9px; letter-spacing:2px; color:var(--ink-dim); margin:12px 0 2px; text-transform:uppercase;}
+.ok{color:var(--c-transit); font-weight:700;} .no{color:var(--red); font-weight:700;}
+
+/* legend */
+.legend-item{display:flex; align-items:center; gap:8px; font-size:11px; margin-bottom:6px; color:var(--ink-dim);}
+.swatch{width:18px; height:0; border-top:3px solid; flex-shrink:0;}
+
+.error-banner{display:none; background:rgba(255,84,104,0.12); border:1px solid var(--red); color:var(--red); font-size:11px; padding:8px 10px; border-radius:2px; margin-bottom:10px;}
+
+/* map */
+.map-wrap{position:relative; min-width:0;}
+#map{width:100%; height:100%; background:var(--void);}
+.leaflet-tactical .leaflet-tile-pane{filter:invert(94%) hue-rotate(180deg) brightness(0.92) contrast(1.08) saturate(1.15);}
+.layer-toggle{position:absolute; top:12px; right:12px; z-index:1000; display:flex; gap:4px; background:var(--panel); border:1px solid var(--panel-edge); border-radius:2px; padding:4px;}
+.layer-toggle button{background:none; border:1px solid var(--cyan-dim); color:var(--ink-dim); font-family:var(--mono); font-size:10px; letter-spacing:1px; padding:5px 9px; border-radius:2px; cursor:pointer;}
+.layer-toggle button.active{background:var(--accent-soft); color:var(--cyan); border-color:var(--cyan);}
+.base-marker{border-radius:50%; box-shadow:0 0 8px rgba(0,0,0,0.45);}
+.map-label{background:var(--panel); border:1px solid var(--cyan-dim); color:var(--cyan); font-family:var(--mono); font-size:10px; padding:1px 5px; border-radius:2px; white-space:nowrap; box-shadow:none;}
+</style>
 </head>
 <body>
 <div class="app">
 
   <header class="hud">
     <div class="hud-title">
-      <span class="mark">RANGE COVERAGER COMPUTER</span>
-      <span class="sub">EFFECTIVE FLIGHT RANGE // COVERAGE ANALYSIS AMONG BASES - AKAINAMI 2026</span>
+      <span class="mark">FLIGHT RANGE COMPUTER</span>
+      <span class="sub">EFFECTIVE FLIGHT RANGE // AIRFIELD COVERAGE ANALYSIS</span>
     </div>
     <div class="hud-status">
-      <span><span class="dot"></span>SYSTEM NOMINAL</span>
+      <span><span class="dot"></span>ACTIVE</span>
       <span id="clock">--:--:--Z</span>
+      <button class="theme-btn" id="themeToggle" type="button">LIGHT THEME</button>
     </div>
   </header>
 
@@ -28,65 +147,55 @@
       <div id="errorBanner" class="error-banner"></div>
 
       <div class="panel">
-        <h2>MISSION PARAMETERS</h2>
+        <h2>Mission Parameters</h2>
         <div class="field">
-          <label>Mission Range — Climb + Cruise + Descent (NM)</label>
-          <input type="number" id="missionDistanceNm" value="400" step="10">
+          <label>MISSION RANGE — CLIMB + CRUISE + DESCENT (NM)</label>
+          <input type="number" id="missionDistanceNm" value="420" step="1">
         </div>
         <div class="row3">
-          <div class="field">
-            <label>Cruise Altitude (FT)</label>
-            <input type="number" id="cruiseAltitudeFt" value="28000" step="1000">
-          </div>
-          <div class="field">
-            <label>Cruise Speed (KCAS)</label>
-            <input type="number" id="cruiseKcas" value="300" step="5">
-          </div>
-          <div class="field">
-            <label>ISA Deviation (°C)</label>
-            <input type="number" id="deltaIsaC" value="0" step="1">
-          </div>
+          <div class="field"><label>CRUISE ALT. (FT)</label><input type="number" id="cruiseAltitudeFt" value="34000" step="500"></div>
+          <div class="field"><label>CRUISE SPEED (KCAS)</label><input type="number" id="cruiseKcas" value="300" step="1"></div>
+          <div class="field"><label>TEMPERATURE - ISA (°C)</label><input type="number" id="deltaIsaC" value="0" step="1"></div>
         </div>
         <div class="row2">
-          <div class="field">
-            <label>Wind Speed (KT)</label>
-            <input type="number" id="windSpeedKt" value="40" step="5">
-          </div>
-          <div class="field">
-            <label>Wind Direction (N°)</label>
-            <input type="number" id="windFromDeg" value="0" step="10" min="0" max="359">
-          </div>
+          <div class="field"><label>WIND SPEED (KT)</label><input type="number" id="windSpeedKt" value="35" step="1"></div>
+          <div class="field"><label>WIND DIRECTION (FROM, °)</label><input type="number" id="windFromDeg" value="270" step="1" min="0" max="359"></div>
         </div>
       </div>
 
       <div class="panel">
-        <h2>OPERATING BASES</h2>
+        <h2>Operating Bases</h2>
         <table class="bases" id="basesTable">
-          <thead><tr><th>ICAO</th><th>AD</th><th>LAT</th><th>LON</th><th></th></tr></thead>
+          <thead><tr><th>ICAO</th><th>NAME</th><th>LAT</th><th>LON</th><th></th></tr></thead>
           <tbody id="basesTbody"></tbody>
         </table>
-        <button class="btn" id="addBaseBtn">+ PİST EKLE</button>
+        <button class="btn" id="addBaseBtn" type="button">+ ADD RUNWAY</button>
       </div>
 
       <div class="panel">
-        <h2>PERFORMANCE RESULTS</h2>
+        <h2>Drawing Options</h2>
+        <table class="options" id="optionsTable">
+          <thead><tr><th>Layer</th><th>Line color</th><th>Fill area</th><th>Draw outline</th></tr></thead>
+          <tbody>
+            <tr><td>Transit envelope<small>Depart from any base, reach a point, land at any base</small></td><td><input type="color" id="color-transit"></td><td><input type="checkbox" id="fill-transit" checked></td><td><input type="checkbox" id="draw-transit" checked></td></tr>
+            <tr><td>Absolute range<small>Straight-through range without returning</small></td><td><input type="color" id="color-absolute"></td><td><input type="checkbox" id="fill-absolute" checked></td><td><input type="checkbox" id="draw-absolute" checked></td></tr>
+            <tr><td>Point of no return<small>Last point from which return to the departure base is possible</small></td><td><input type="color" id="color-pnr"></td><td><input type="checkbox" id="fill-pnr"></td><td><input type="checkbox" id="draw-pnr"></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Results</h2>
         <div id="resultsBox"></div>
-      </div>
-
-      <div class="panel">
-        <h2>LEGEND</h2>
-        <div class="legend-item"><span class="swatch" style="background:rgba(51,230,160,0.35);"></span>Coverage Area</div>
-        <div class="legend-item"><span class="swatch" style="background:rgba(61,230,200,0.9);"></span>Coverage Envelope</div>
-        <div class="legend-item"><span class="swatch" style="background:#0a1420; border:2px solid var(--cyan);"></span>Airbase</div>
       </div>
 
     </div>
 
     <div class="map-wrap">
       <div class="layer-toggle" id="layerToggle">
-        <button data-layer="google" class="active">GOOGLE</button>
-        <button data-layer="osm">OSM</button>
-        <button data-layer="skyvector">SKYVECTOR</button>
+        <button data-layer="google" class="active" type="button">GOOGLE</button>
+        <button data-layer="osm" type="button">OSM</button>
+        <button data-layer="skyvector" type="button">SKYVECTOR</button>
       </div>
       <div id="map"></div>
     </div>
@@ -94,6 +203,406 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="script.js"></script>
+<script>
+// ==== PURE-GEOMETRY-START (no DOM access below this marker; kept separable for testing)
+/* ================================================================
+   ATMOSPHERE MODEL (adapted / condensed from user-supplied script.js)
+   5-layer ISA / UDSE model for a pressure altitude (ft) and a fixed
+   mission-wide temperature deviation from ISA (deltaIsaC).
+   ================================================================ */
+const SEA_LEVEL_PRESSURE_PA = 101325, SEA_LEVEL_TEMPERATURE_K = 288.15, SPEED_OF_SOUND_SL_KT = 661.479;
+
+function computeAtmosphere(pressureAltitudeFt, deltaIsaC) {
+  const altitudeM = pressureAltitudeFt * 0.3048;
+  let delta, oatKelvin;
+  if (altitudeM >= -700 && altitudeM < 11000) { delta = (1 / SEA_LEVEL_PRESSURE_PA) * Math.pow(8.9619638 - 0.20216125e-3 * altitudeM, 5.2558797); oatKelvin = 288.15 - 6.5e-3 * altitudeM + deltaIsaC; }
+  else if (altitudeM >= 11000 && altitudeM < 20000) { delta = (1 / SEA_LEVEL_PRESSURE_PA) * 128244.5 * Math.exp(-0.15768852e-3 * altitudeM); oatKelvin = 216.65 + deltaIsaC; }
+  else if (altitudeM >= 20000 && altitudeM < 32000) { delta = (1 / SEA_LEVEL_PRESSURE_PA) * Math.pow(0.70551848 + 3.5876861e-6 * altitudeM, -34.163218); oatKelvin = 196.65 + 1e-3 * altitudeM + deltaIsaC; }
+  else if (altitudeM >= 32000 && altitudeM < 47000) { delta = (1 / SEA_LEVEL_PRESSURE_PA) * Math.pow(0.34926867 + 7.0330980e-6 * altitudeM, -12.201149); oatKelvin = 139.05 + 2.8e-3 * altitudeM + deltaIsaC; }
+  else if (altitudeM >= 47000 && altitudeM < 50000) { delta = (1 / SEA_LEVEL_PRESSURE_PA) * 41828.420 * Math.exp(-0.12622656e-3 * altitudeM); oatKelvin = 270.65 + deltaIsaC; }
+  else { throw new RangeError("Pressure altitude is outside the UDSE definition range (-700 m to 50000 m)."); }
+  const theta = oatKelvin / SEA_LEVEL_TEMPERATURE_K, speedOfSoundKt = SPEED_OF_SOUND_SL_KT * Math.sqrt(theta);
+  return { delta, theta, speedOfSoundKt, staticPressurePa: SEA_LEVEL_PRESSURE_PA * delta };
+}
+
+// Subsonic KCAS -> Mach / KTAS conversion; medevac turboprop / light-jet cruise never approaches Mach 1.
+function kcasToTrueAirspeed(pressureAltitudeFt, deltaIsaC, kcasKt) {
+  const atmosphere = computeAtmosphere(pressureAltitudeFt, deltaIsaC);
+  const impactPressureRatio = Math.pow(1 + 0.2 * Math.pow(kcasKt / SPEED_OF_SOUND_SL_KT, 2), 3.5) - 1;
+  const totalToStaticRatio = (SEA_LEVEL_PRESSURE_PA / atmosphere.staticPressurePa) * impactPressureRatio + 1;
+  const mach = Math.sqrt(5 * (Math.pow(totalToStaticRatio, 2 / 7) - 1));
+  return { mach, trueAirspeedKt: mach * atmosphere.speedOfSoundKt, atmosphere };
+}
+
+/* ================================================================
+   GEODESY - spherical Earth, nautical miles. Everything is computed
+   in lat/lon space and handed to Leaflet as vector geometry, so the
+   map projection (and therefore the equator) never affects the shapes.
+   ================================================================ */
+const EARTH_RADIUS_NM = 3440.065;
+const toRad = deg => deg * Math.PI / 180, toDeg = rad => rad * 180 / Math.PI;
+
+function greatCircleDistanceNm(lat1, lon1, lat2, lon2) {
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1), la1 = toRad(lat1), la2 = toRad(lat2);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
+  return EARTH_RADIUS_NM * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function initialBearingDeg(lat1, lon1, lat2, lon2) {
+  const la1 = toRad(lat1), la2 = toRad(lat2), dLon = toRad(lon2 - lon1);
+  const y = Math.sin(dLon) * Math.cos(la2), x = Math.cos(la1) * Math.sin(la2) - Math.sin(la1) * Math.cos(la2) * Math.cos(dLon);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function destinationPoint(lat, lon, bearingDeg, distanceNm) {
+  const angularDistance = distanceNm / EARTH_RADIUS_NM, la1 = toRad(lat), lo1 = toRad(lon), bearing = toRad(bearingDeg);
+  const la2 = Math.asin(Math.sin(la1) * Math.cos(angularDistance) + Math.cos(la1) * Math.sin(angularDistance) * Math.cos(bearing));
+  const lo2 = lo1 + Math.atan2(Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(la1), Math.cos(angularDistance) - Math.sin(la1) * Math.sin(la2));
+  return [toDeg(la2), ((toDeg(lo2) + 540) % 360) - 180];
+}
+
+/* ================================================================
+   WIND TRIANGLE - ground speed along a desired track, heading corrected
+   for cross-wind drift (standard E6B solution). flightConditions is
+   { trueAirspeedKt, windSpeedKt, windFromDeg }.
+   ================================================================ */
+function windCorrectedGroundSpeedKt(flightConditions, trackDeg) {
+  const downwindDeg = flightConditions.windFromDeg + 180, relativeAngle = toRad(trackDeg - downwindDeg);
+  const windCorrectionAngle = Math.asin(Math.min(1, Math.max(-1, (flightConditions.windSpeedKt / flightConditions.trueAirspeedKt) * Math.sin(relativeAngle))));
+  return Math.max(1, flightConditions.trueAirspeedKt * Math.cos(windCorrectionAngle) + flightConditions.windSpeedKt * Math.cos(relativeAngle));
+}
+
+// Flight time (hours) of one straight leg, using the wind-corrected ground speed on its initial track.
+function legTimeHr(fromLat, fromLon, toLat, toLon, flightConditions) {
+  const groundSpeedKt = windCorrectedGroundSpeedKt(flightConditions, initialBearingDeg(fromLat, fromLon, toLat, toLon));
+  return greatCircleDistanceNm(fromLat, fromLon, toLat, toLon) / groundSpeedKt;
+}
+
+/* ================================================================
+   RING GENERATORS (per base). The time budget is T = D / TAS, i.e. the
+   still-air time the single mission distance D represents.
+   ================================================================ */
+const RING_SAMPLE_COUNT = 120;
+
+// Absolute range: depart the base and fly straight without landing -> radius(track) = GS(track) * T.
+function generateAbsoluteRangeRing(base, flightConditions, timeBudgetHr) {
+  const points = [], radiiNm = [];
+  for (let sampleIndex = 0; sampleIndex < RING_SAMPLE_COUNT; sampleIndex++) {
+    const bearingDeg = sampleIndex * 360 / RING_SAMPLE_COUNT, radiusNm = windCorrectedGroundSpeedKt(flightConditions, bearingDeg) * timeBudgetHr;
+    radiiNm.push(radiusNm); points.push(destinationPoint(base.lat, base.lon, bearingDeg, radiusNm));
+  }
+  return { points, radiiNm };
+}
+
+// Point of no return (back to the SAME base): out and back on reciprocal tracks share the budget -> radius = T / (1/GSout + 1/GSback).
+function generatePointOfNoReturnRing(base, flightConditions, timeBudgetHr) {
+  const points = [], radiiNm = [];
+  for (let sampleIndex = 0; sampleIndex < RING_SAMPLE_COUNT; sampleIndex++) {
+    const bearingDeg = sampleIndex * 360 / RING_SAMPLE_COUNT;
+    const groundSpeedOutKt = windCorrectedGroundSpeedKt(flightConditions, bearingDeg), groundSpeedBackKt = windCorrectedGroundSpeedKt(flightConditions, bearingDeg + 180);
+    const radiusNm = timeBudgetHr / (1 / groundSpeedOutKt + 1 / groundSpeedBackKt);
+    radiiNm.push(radiusNm); points.push(destinationPoint(base.lat, base.lon, bearingDeg, radiusNm));
+  }
+  return { points, radiiNm };
+}
+
+/* ================================================================
+   TRANSIT ENVELOPE (depart ANY base, visit point P, land at ANY base)
+   For a point P the best total time is
+     g(P) = min_i legTime(base_i -> P) + min_j legTime(P -> base_j)
+   (the two minima are independent), and P is covered when g(P) <= T.
+   g is sampled on a lat/lon grid and the g = T contour is extracted
+   with marching squares, giving ONE fused vector outline.
+   ================================================================ */
+const OUTSIDE_FIELD_VALUE = 1e6, MAX_MERCATOR_LAT = 85;
+
+function computeTransitBounds(bases, flightConditions, timeBudgetHr) {
+  const maxReachNm = timeBudgetHr * (flightConditions.trueAirspeedKt + flightConditions.windSpeedKt) * 1.15;
+  const latPadDeg = maxReachNm / 60;
+  const south = Math.max(-MAX_MERCATOR_LAT, Math.min(...bases.map(b => b.lat)) - latPadDeg), north = Math.min(MAX_MERCATOR_LAT, Math.max(...bases.map(b => b.lat)) + latPadDeg);
+  const worstCosLat = Math.max(0.05, Math.cos(toRad(Math.min(80, Math.max(Math.abs(south), Math.abs(north))))));
+  const lonPadDeg = Math.min(170, maxReachNm / (60 * worstCosLat));
+  return { south, north, west: Math.min(...bases.map(b => b.lon)) - lonPadDeg, east: Math.max(...bases.map(b => b.lon)) + lonPadDeg };
+}
+
+function computeTransitField(bases, flightConditions, bounds, rows, cols) {
+  const field = new Float32Array(rows * cols).fill(OUTSIDE_FIELD_VALUE);
+  const latStep = (bounds.north - bounds.south) / (rows - 1), lonStep = (bounds.east - bounds.west) / (cols - 1);
+  for (let row = 1; row < rows - 1; row++) {
+    const lat = bounds.north - row * latStep;
+    for (let col = 1; col < cols - 1; col++) {
+      const lon = bounds.west + col * lonStep;
+      let bestOutboundHr = Infinity, bestInboundHr = Infinity;
+      for (const base of bases) {
+        bestOutboundHr = Math.min(bestOutboundHr, legTimeHr(base.lat, base.lon, lat, lon, flightConditions));
+        bestInboundHr = Math.min(bestInboundHr, legTimeHr(lat, lon, base.lat, base.lon, flightConditions));
+      }
+      field[row * cols + col] = bestOutboundHr + bestInboundHr;
+    }
+  }
+  return field;
+}
+
+// Marching squares on a scalar field: returns closed rings ([lat, lon] arrays) around cells where field < level.
+function marchingSquaresRings(field, rows, cols, bounds, level) {
+  const latStep = (bounds.north - bounds.south) / (rows - 1), lonStep = (bounds.east - bounds.west) / (cols - 1);
+  const valueAt = (row, col) => field[row * cols + col];
+  const edgePointCache = new Map();
+  // Edge keys: "h:r:c" = horizontal edge between vertices (r,c)-(r,c+1); "v:r:c" = vertical edge between (r,c)-(r+1,c).
+  const edgePoint = (edgeKey) => {
+    if (edgePointCache.has(edgeKey)) return edgePointCache.get(edgeKey);
+    const [orientation, rowText, colText] = edgeKey.split(":"), row = Number(rowText), col = Number(colText), isHorizontal = orientation === "h";
+    const startValue = valueAt(row, col), endValue = isHorizontal ? valueAt(row, col + 1) : valueAt(row + 1, col), fraction = (level - startValue) / (endValue - startValue);
+    const point = isHorizontal ? [bounds.north - row * latStep, bounds.west + (col + fraction) * lonStep] : [bounds.north - (row + fraction) * latStep, bounds.west + col * lonStep];
+    edgePointCache.set(edgeKey, point);
+    return point;
+  };
+
+  const segments = [];
+  for (let row = 0; row < rows - 1; row++) {
+    for (let col = 0; col < cols - 1; col++) {
+      const topLeft = valueAt(row, col) < level, topRight = valueAt(row, col + 1) < level, bottomRight = valueAt(row + 1, col + 1) < level, bottomLeft = valueAt(row + 1, col) < level;
+      const caseIndex = (topLeft ? 8 : 0) | (topRight ? 4 : 0) | (bottomRight ? 2 : 0) | (bottomLeft ? 1 : 0);
+      if (caseIndex === 0 || caseIndex === 15) continue;
+      const top = `h:${row}:${col}`, bottom = `h:${row + 1}:${col}`, left = `v:${row}:${col}`, right = `v:${row}:${col + 1}`;
+      const centerInside = (valueAt(row, col) + valueAt(row, col + 1) + valueAt(row + 1, col + 1) + valueAt(row + 1, col)) / 4 < level;
+      const segmentPairsByCase = { 1: [[left, bottom]], 2: [[bottom, right]], 3: [[left, right]], 4: [[top, right]], 6: [[top, bottom]], 7: [[left, top]], 8: [[left, top]], 9: [[top, bottom]], 11: [[top, right]], 12: [[left, right]], 13: [[bottom, right]], 14: [[left, bottom]],
+        5: centerInside ? [[left, top], [bottom, right]] : [[left, bottom], [top, right]], 10: centerInside ? [[top, right], [left, bottom]] : [[left, top], [bottom, right]] };
+      segmentPairsByCase[caseIndex].forEach(pair => segments.push(pair));
+    }
+  }
+
+  // Stitch the unordered segments into closed rings by walking shared edge keys.
+  const segmentsByEdgeKey = new Map();
+  segments.forEach((segment, segmentIndex) => segment.forEach(edgeKey => { if (!segmentsByEdgeKey.has(edgeKey)) segmentsByEdgeKey.set(edgeKey, []); segmentsByEdgeKey.get(edgeKey).push(segmentIndex); }));
+  const visitedSegments = new Set(), rings = [];
+  segments.forEach((startSegment, startIndex) => {
+    if (visitedSegments.has(startIndex)) return;
+    visitedSegments.add(startIndex);
+    const startKey = startSegment[0], ring = [edgePoint(startKey)];
+    let currentKey = startSegment[1];
+    while (currentKey !== startKey) {
+      ring.push(edgePoint(currentKey));
+      const nextIndex = (segmentsByEdgeKey.get(currentKey) || []).find(candidateIndex => !visitedSegments.has(candidateIndex));
+      if (nextIndex === undefined) break;
+      visitedSegments.add(nextIndex);
+      const nextSegment = segments[nextIndex];
+      currentKey = nextSegment[0] === currentKey ? nextSegment[1] : nextSegment[0];
+    }
+    if (ring.length >= 3) rings.push(ring);
+  });
+  return rings;
+}
+
+// Approximate covered area (NM^2): every grid vertex with field < level owns one cell of its own latitude.
+function estimateCoveredAreaNm2(field, rows, cols, bounds, level) {
+  const latStep = (bounds.north - bounds.south) / (rows - 1), lonStep = (bounds.east - bounds.west) / (cols - 1);
+  let areaNm2 = 0;
+  for (let row = 0; row < rows; row++) {
+    const cellAreaNm2 = (latStep * 60) * (lonStep * 60 * Math.cos(toRad(bounds.north - row * latStep)));
+    for (let col = 0; col < cols; col++) if (field[row * cols + col] < level) areaNm2 += cellAreaNm2;
+  }
+  return areaNm2;
+}
+
+const TRANSIT_GRID_COLS = 130;
+
+function computeTransitEnvelope(bases, flightConditions, timeBudgetHr) {
+  const bounds = computeTransitBounds(bases, flightConditions, timeBudgetHr);
+  const midLat = (bounds.north + bounds.south) / 2, spanEastNm = (bounds.east - bounds.west) * 60 * Math.cos(toRad(midLat)), spanNorthNm = (bounds.north - bounds.south) * 60;
+  const cols = TRANSIT_GRID_COLS, rows = Math.max(50, Math.min(240, Math.round(cols * spanNorthNm / spanEastNm)));
+  const field = computeTransitField(bases, flightConditions, bounds, rows, cols);
+  return { rings: marchingSquaresRings(field, rows, cols, bounds, timeBudgetHr), areaNm2: estimateCoveredAreaNm2(field, rows, cols, bounds, timeBudgetHr), bounds };
+}
+// ==== PURE-GEOMETRY-END
+
+/* ================================================================
+   APPLICATION STATE
+   ================================================================ */
+let bases = [
+  { icao: "LTFM", name: "Istanbul", lat: 41.2753, lon: 28.7519 },
+  { icao: "LTAC", name: "Ankara Esenboga", lat: 40.1281, lon: 32.9950 },
+  { icao: "LTAN", name: "Konya", lat: 37.9836, lon: 32.5769 }
+];
+// Cache of the last computed geometry so that toggling a drawing option only redraws, without recomputing.
+let computedGeometry = null;
+
+/* ================================================================
+   MAP SETUP
+   ================================================================ */
+const map = L.map("map", { zoomControl: true, attributionControl: true, worldCopyJump: true }).setView([39.5, 32.5], 6);
+
+const tileLayers = {
+  google: L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", { subdomains: ["mt0", "mt1", "mt2", "mt3"], maxZoom: 20, attribution: "Map data \u00a9 Google" }),
+  osm: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: ["a", "b", "c"], maxZoom: 19, attribution: "\u00a9 OpenStreetMap contributors" })
+};
+tileLayers.google.addTo(map);
+
+document.getElementById("layerToggle").addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (!button) return;
+  const layerKey = button.dataset.layer;
+  if (layerKey === "skyvector") {
+    showError("SkyVector does not offer a public tile service: this map layer needs a SkyVector account / URL template. You can add your own SkyVector TMS/WMS address to the tileLayers object in the code.");
+    return;
+  }
+  Object.values(tileLayers).forEach(layer => map.hasLayer(layer) && map.removeLayer(layer));
+  tileLayers[layerKey].addTo(map);
+  document.querySelectorAll("#layerToggle button").forEach(b => b.classList.remove("active"));
+  button.classList.add("active");
+});
+
+const overlayGroup = L.layerGroup().addTo(map);
+
+function createBaseIcon() {
+  return L.divIcon({ className: "", html: `<div class="base-marker" style="width:14px;height:14px;background:var(--field-bg);border:2px solid var(--cyan);"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+}
+
+/* ================================================================
+   THEME (dark / light) - one-click toggle, remembered when storage is available
+   ================================================================ */
+function applyTheme(themeName) {
+  document.documentElement.setAttribute("data-theme", themeName);
+  document.getElementById("map").classList.toggle("leaflet-tactical", themeName === "dark");
+  document.getElementById("themeToggle").textContent = themeName === "dark" ? "LIGHT THEME" : "DARK THEME";
+  try { localStorage.setItem("rangeToolTheme", themeName); } catch (storageError) { /* storage unavailable: the theme still applies for this session */ }
+  syncColorInputsToTheme();
+  redrawLayers();
+}
+document.getElementById("themeToggle").addEventListener("click", () => applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
+
+/* ================================================================
+   RUNWAY TABLE (rendering + CRUD)
+   ================================================================ */
+function renderBasesTable() {
+  const tbody = document.getElementById("basesTbody");
+  tbody.innerHTML = "";
+  bases.forEach((base, index) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input data-f="icao" value="${base.icao}" style="width:56px;"></td>
+      <td><input data-f="name" value="${base.name}"></td>
+      <td><input data-f="lat" type="number" step="0.0001" value="${base.lat}" style="width:66px;"></td>
+      <td><input data-f="lon" type="number" step="0.0001" value="${base.lon}" style="width:66px;"></td>
+      <td><button class="icon-btn" data-del="${index}" type="button">✕</button></td>`;
+    tr.querySelectorAll("input").forEach(input => input.addEventListener("input", () => {
+      const field = input.dataset.f;
+      bases[index][field] = (field === "lat" || field === "lon") ? Number(input.value) : input.value.toUpperCase();
+      scheduleRecalculation();
+    }));
+    tr.querySelector("[data-del]").addEventListener("click", () => { bases.splice(index, 1); renderBasesTable(); recalculate(); });
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById("addBaseBtn").addEventListener("click", () => { bases.push({ icao: "NEW" + bases.length, name: "New Runway", lat: 39.0, lon: 33.0 }); renderBasesTable(); recalculate(); });
+
+/* ================================================================
+   ERROR BANNER + SMALL HELPERS
+   ================================================================ */
+function showError(message) { const el = document.getElementById("errorBanner"); el.textContent = message; el.style.display = "block"; }
+function clearError() { document.getElementById("errorBanner").style.display = "none"; }
+function readoutRow(label, value) { return `<div class="readout"><span class="k">${label}</span><span class="v">${value}</span></div>`; }
+function formatHm(hours) { const h = Math.floor(hours), m = Math.round((hours - h) * 60); return `${h}h ${String(m).padStart(2, "0")}min`; }
+function formatRadiusRange(radiiNm) { return `${Math.round(Math.min(...radiiNm))}–${Math.round(Math.max(...radiiNm))}`; }
+function debounce(callback, delayMs) { let timerId; return () => { clearTimeout(timerId); timerId = setTimeout(callback, delayMs); }; }
+const cssColor = (variableName) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+
+/* ================================================================
+   DRAWING - redraws cached geometry according to the option checkboxes
+   ================================================================ */
+// Per-layer drawing style: null = follow the active theme's default colour, a hex string = colour picked by the user.
+const LAYER_KEYS = ["transit", "absolute", "pnr"], LAYER_CSS_VARIABLES = { transit: "--c-transit", absolute: "--c-absolute", pnr: "--c-pnr" };
+const layerCustomColors = { transit: null, absolute: null, pnr: null };
+const layerColor = (layerKey) => layerCustomColors[layerKey] || cssColor(LAYER_CSS_VARIABLES[layerKey]);
+function layerSettings(layerKey) { return { color: layerColor(layerKey), fill: document.getElementById(`fill-${layerKey}`).checked, outline: document.getElementById(`draw-${layerKey}`).checked }; }
+function syncColorInputsToTheme() { LAYER_KEYS.forEach(layerKey => { document.getElementById(`color-${layerKey}`).value = layerColor(layerKey); }); }
+
+function redrawLayers() {
+  overlayGroup.clearLayers();
+  if (!computedGeometry) return;
+  const transitStyle = layerSettings("transit"), absoluteStyle = layerSettings("absolute"), pnrStyle = layerSettings("pnr");
+  const isVisible = (style) => style.outline || style.fill;
+  const polygonOptions = (style, fillOpacity, extraOptions) => ({ color: style.color, stroke: style.outline, fill: style.fill, fillColor: style.color, fillOpacity, ...extraOptions });
+
+  // Transit rings all go into ONE polygon: Leaflet's even-odd fill keeps separate islands filled and nested holes empty.
+  if (isVisible(transitStyle) && computedGeometry.transit.rings.length) L.polygon(computedGeometry.transit.rings, polygonOptions(transitStyle, 0.16, { weight: 2.5 })).addTo(overlayGroup).bindTooltip("Transit envelope (depart-land between bases)");
+  computedGeometry.perBase.forEach(({ base, absoluteRing, pnrRing }) => {
+    if (isVisible(absoluteStyle)) L.polygon(absoluteRing.points, polygonOptions(absoluteStyle, 0.06, { weight: 1.8})).addTo(overlayGroup).bindTooltip(`${base.icao} — absolute range`);
+    if (isVisible(pnrStyle)) L.polygon(pnrRing.points, polygonOptions(pnrStyle, 0.08, { weight: 1.8 })).addTo(overlayGroup).bindTooltip(`${base.icao} — point of no return`);
+  });
+  bases.forEach(base => L.marker([base.lat, base.lon], { icon: createBaseIcon() }).addTo(overlayGroup)
+    .bindTooltip(base.icao, { permanent: true, direction: "top", offset: [0, -6], className: "map-label" })
+    .bindPopup(`<b>${base.icao}</b> — ${base.name}<br>${base.lat.toFixed(4)}, ${base.lon.toFixed(4)}`));
+}
+LAYER_KEYS.forEach(layerKey => {
+  document.getElementById(`color-${layerKey}`).addEventListener("input", (event) => { layerCustomColors[layerKey] = event.target.value; redrawLayers(); });
+  ["fill", "draw"].forEach(prefix => document.getElementById(`${prefix}-${layerKey}`).addEventListener("change", redrawLayers));
+});
+
+/* ================================================================
+   MAIN RECALCULATION - reads inputs, computes every envelope, updates results
+   ================================================================ */
+function recalculate() {
+  clearError();
+  computedGeometry = null;
+  if (bases.length === 0) { redrawLayers(); showError("Define at least one base/runway."); return; }
+  if (!bases.every(b => Number.isFinite(b.lat) && Number.isFinite(b.lon) && Math.abs(b.lat) <= MAX_MERCATOR_LAT && Math.abs(b.lon) <= 180)) { redrawLayers(); showError(`Invalid base coordinates (latitude must be within ±${MAX_MERCATOR_LAT}° and longitude within ±180°).`); return; }
+
+  const missionDistanceNm = Number(document.getElementById("missionDistanceNm").value), cruiseAltitudeFt = Number(document.getElementById("cruiseAltitudeFt").value);
+  const cruiseKcas = Number(document.getElementById("cruiseKcas").value), deltaIsaC = Number(document.getElementById("deltaIsaC").value);
+  const windSpeedKt = Number(document.getElementById("windSpeedKt").value), windFromDeg = ((Number(document.getElementById("windFromDeg").value) % 360) + 360) % 360;
+  if (![missionDistanceNm, cruiseAltitudeFt, cruiseKcas, deltaIsaC, windSpeedKt].every(Number.isFinite) || missionDistanceNm <= 0 || cruiseKcas <= 0) { redrawLayers(); showError("Please enter valid numeric values for all mission parameters."); return; }
+
+  let atmosphereResult;
+  try { atmosphereResult = kcasToTrueAirspeed(cruiseAltitudeFt, deltaIsaC, cruiseKcas); }
+  catch (err) { redrawLayers(); showError(err.message); return; }
+  const trueAirspeedKt = atmosphereResult.trueAirspeedKt;
+  if (windSpeedKt >= trueAirspeedKt) { redrawLayers(); showError("Wind speed exceeds cruise TAS: the effective range becomes undefined in some directions."); return; }
+
+  const flightConditions = { trueAirspeedKt, windSpeedKt, windFromDeg }, timeBudgetHr = missionDistanceNm / trueAirspeedKt;
+  const transit = computeTransitEnvelope(bases, flightConditions, timeBudgetHr);
+  const perBase = bases.map(base => ({ base, absoluteRing: generateAbsoluteRangeRing(base, flightConditions, timeBudgetHr), pnrRing: generatePointOfNoReturnRing(base, flightConditions, timeBudgetHr) }));
+  computedGeometry = { transit, perBase };
+
+  // Base-to-base transit matrix: can the aircraft fly "depart A, land B" directly within the budget?
+  let transitRowsHtml = "";
+  bases.forEach(departureBase => bases.forEach(landingBase => {
+    if (departureBase === landingBase) return;
+    const distanceNm = greatCircleDistanceNm(departureBase.lat, departureBase.lon, landingBase.lat, landingBase.lon), legHr = legTimeHr(departureBase.lat, departureBase.lon, landingBase.lat, landingBase.lon, flightConditions);
+    transitRowsHtml += `<tr><td>${departureBase.icao} → ${landingBase.icao}</td><td>${distanceNm.toFixed(0)} NM</td><td>${formatHm(legHr)}</td><td class="${legHr <= timeBudgetHr ? "ok" : "no"}">${legHr <= timeBudgetHr ? "FEASIBLE" : "INFEASIBLE"}</td></tr>`;
+  }));
+  const perBaseRowsHtml = perBase.map(({ base, absoluteRing, pnrRing }) => `<tr><td>${base.icao}</td><td>${formatRadiusRange(absoluteRing.radiiNm)}</td><td>${formatRadiusRange(pnrRing.radiiNm)}</td></tr>`).join("");
+
+  document.getElementById("resultsBox").innerHTML =
+    readoutRow("Cruise TAS / MACH", `${trueAirspeedKt.toFixed(1)} kt / ${atmosphereResult.mach.toFixed(3)}`) +
+    readoutRow("Time budget (D/TAS)", formatHm(timeBudgetHr)) +
+    readoutRow("Still-air reference (D)", `${missionDistanceNm.toFixed(0)} NM`) +
+    readoutRow("Transit envelope area (approx.)", `${transit.areaNm2.toFixed(0)} NM² / ${(transit.areaNm2 * 3.4299).toFixed(0)} km²`) +
+    `<div class="sub-heading">Radius per base, min–max (NM)</div><table class="mini"><thead><tr><th>Base</th><th>Absolute</th><th>PNR</th></tr></thead><tbody>${perBaseRowsHtml}</tbody></table>` +
+    (transitRowsHtml ? `<div class="sub-heading">Depart → Land (direct transit)</div><table class="mini"><thead><tr><th>Route</th><th>Distance</th><th>Time</th><th></th></tr></thead><tbody>${transitRowsHtml}</tbody></table>` : "");
+
+  redrawLayers();
+  const allPoints = [...bases.map(b => [b.lat, b.lon]), ...perBase.flatMap(entry => entry.absoluteRing.points), ...transit.rings.flat()];
+  map.fitBounds(L.latLngBounds(allPoints), { padding: [24, 24] });
+}
+const scheduleRecalculation = debounce(recalculate, 160);
+
+["missionDistanceNm", "cruiseAltitudeFt", "cruiseKcas", "deltaIsaC", "windSpeedKt", "windFromDeg"].forEach(id => document.getElementById(id).addEventListener("input", scheduleRecalculation));
+
+/* ================================================================
+   UTC CLOCK
+   ================================================================ */
+function tickClock() { document.getElementById("clock").textContent = new Date().toISOString().substr(11, 8) + "Z"; }
+setInterval(tickClock, 1000); tickClock();
+
+/* ================================================================
+   INITIALIZE
+   ================================================================ */
+let initialTheme = "dark";
+try { initialTheme = localStorage.getItem("rangeToolTheme") === "light" ? "light" : "dark"; } catch (storageError) { /* storage unavailable: fall back to the dark default */ }
+renderBasesTable();
+applyTheme(initialTheme);
+recalculate();
+</script>
 </body>
 </html>
