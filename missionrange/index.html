@@ -433,7 +433,7 @@ let computedGeometry = null;
 const map = L.map("map", { zoomControl: true, attributionControl: true, worldCopyJump: true }).setView([39.5, 32.5], 6);
 
 const tileLayers = {
-  google: L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", { subdomains: ["mt0", "mt1", "mt2", "mt3"], maxZoom: 20, attribution: "Map data \u00a9 Google" }),
+  google: L.tileLayer("https://{s}.google.com/vt/lyrs=m&hl=en&gl=TR&x={x}&y={y}&z={z}", { subdomains: ["mt0", "mt1", "mt2", "mt3"], maxZoom: 20, attribution: "Map data \u00a9 Google" }),
   osm: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { subdomains: ["a", "b", "c"], maxZoom: 19, attribution: "\u00a9 OpenStreetMap contributors" })
 };
 tileLayers.google.addTo(map);
